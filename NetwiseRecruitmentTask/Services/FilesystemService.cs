@@ -1,4 +1,3 @@
-
 public sealed class FilesystemService : IFilesystemService
 {
     public string FilePath { get; }
