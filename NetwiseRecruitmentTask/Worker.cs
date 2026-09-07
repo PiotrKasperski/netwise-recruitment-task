@@ -1,38 +1,55 @@
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
-public sealed class Worker(IHostApplicationLifetime hostApplicationLifetime, ICatFactApiService _catFactApiService, IFilesystemService _filesystemService) : BackgroundService
+public sealed class Worker(
+    IHostApplicationLifetime hostApplicationLifetime,
+    ICatFactApiService catFactApiService,
+    IFilesystemService filesystemService,
+    IConsoleService console,
+    ILogger<Worker> logger) : BackgroundService
 {
-    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    protected override Task ExecuteAsync(CancellationToken stoppingToken) =>
+        RunLoopAsync(stoppingToken);
+
+    internal async Task RunLoopAsync(CancellationToken stoppingToken)
     {
-        Console.Clear();
-        _filesystemService.EnsureFileExist();
-        while (true)
+        console.Clear();
+        filesystemService.EnsureFileExist();
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            Console.WriteLine("Push ENTER to get new fact or type 'exit' to close the app");
+            console.WriteLine("Push ENTER to get new fact or type 'exit' to close the app");
+            console.Write("> ");
 
-            Console.Write("> ");
-            var input = Console.ReadLine();
+            var input = console.ReadLine();
 
-            if (String.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
+            if (string.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
             {
-                Console.WriteLine("Exited");
+                console.WriteLine("Exited");
                 break;
             }
 
             try
             {
-                var fact = await _catFactApiService.GetCatFactAsync();
-                Console.Clear();
-                await _filesystemService.AppendLineAsync($"Fact: {fact.Fact} length: {fact.Length}");
-                Console.WriteLine(fact.Fact);
+                var fact = await catFactApiService.GetCatFactAsync(stoppingToken);
+                await filesystemService.AppendLineAsync($"Fact: {fact.Fact} length: {fact.Length}", stoppingToken);
+
+                console.Clear();
+                console.WriteLine(fact.Fact);
+
+                logger.LogInformation("Fetched and saved fact of length {Length}", fact.Length);
+            }
+            catch (OperationCanceledException)
+            {
+                break;
             }
             catch (Exception ex)
             {
-                TextWriter errorWriter = Console.Error;
-                errorWriter.WriteLine(ex.Message);
+                logger.LogError(ex, "Failed to fetch or save cat fact");
+                console.WriteError(ex.Message);
             }
         }
-        hostApplicationLifetime.StopApplication();
 
+        hostApplicationLifetime.StopApplication();
     }
 }
