@@ -12,4 +12,3 @@ IHost host = builder.Build();
 
 host.Run();
 
-public partial class Program { }
