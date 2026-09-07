@@ -7,7 +7,7 @@ public static class ServiceConfiguration
         services.AddHostedService<Worker>();
         services.AddHttpClient<ICatFactApiService, CatFactApiService>(client =>
         {
-            client.BaseAddress = new Uri("https://catfact.ninja/fact/");
+            client.BaseAddress = new Uri("https://catfact.ninja/");
             client.Timeout = TimeSpan.FromSeconds(10);
         });
         services.AddSingleton<IFilesystemService, FilesystemService>();
