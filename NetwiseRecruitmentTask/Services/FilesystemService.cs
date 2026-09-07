@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Options;
 
+namespace NetwiseRecruitmentTask.Services;
+
 public sealed class FilesystemService : IFilesystemService
 {
     public string FilePath { get; }

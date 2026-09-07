@@ -1,5 +1,6 @@
-
 using System.Text;
+
+namespace NetwiseRecruitmentTask.Services;
 
 public sealed class ConsoleService : IConsoleService
 {

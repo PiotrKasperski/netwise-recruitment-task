@@ -1,5 +1,8 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using NetwiseRecruitmentTask.Services;
+
+namespace NetwiseRecruitmentTask;
 
 public sealed class Worker(
     IHostApplicationLifetime hostApplicationLifetime,

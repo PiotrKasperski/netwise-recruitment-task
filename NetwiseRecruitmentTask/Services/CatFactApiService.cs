@@ -1,5 +1,8 @@
 using System.Net.Http.Json;
 using Microsoft.Extensions.Options;
+using NetwiseRecruitmentTask.Models;
+
+namespace NetwiseRecruitmentTask.Services;
 
 public sealed class CatFactApiService : ICatFactApiService
 {

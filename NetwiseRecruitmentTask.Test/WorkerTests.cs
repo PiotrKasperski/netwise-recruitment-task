@@ -2,6 +2,9 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
+using NetwiseRecruitmentTask;
+using NetwiseRecruitmentTask.Models;
+using NetwiseRecruitmentTask.Services;
 
 [TestClass]
 public class WorkerTests

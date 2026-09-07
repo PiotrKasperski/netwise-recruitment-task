@@ -1,3 +1,5 @@
+namespace NetwiseRecruitmentTask.Services;
+
 public interface IConsoleService
 {
     Task<string?> ReadLineAsync(CancellationToken cancellationToken);
