@@ -1,6 +1,6 @@
 public interface IConsoleService
 {
-    string? ReadLine();
+    Task<string?> ReadLineAsync(CancellationToken cancellationToken);
     void WriteLine(string message);
     void Write(string message);
     void WriteError(string message);

@@ -21,7 +21,7 @@ public sealed class Worker(
             console.WriteLine("Push ENTER to get new fact or type 'exit' to close the app");
             console.Write("> ");
 
-            var input = console.ReadLine();
+            var input = await console.ReadLineAsync(stoppingToken);
 
             if (string.Equals(input, "exit", StringComparison.OrdinalIgnoreCase))
             {
@@ -37,7 +37,6 @@ public sealed class Worker(
                 console.Clear();
                 console.WriteLine(fact.Fact);
 
-                logger.LogInformation("Fetched and saved fact of length {Length}", fact.Length);
             }
             catch (OperationCanceledException)
             {
