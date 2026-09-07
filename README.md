@@ -1,6 +1,8 @@
 
 # Netwise Recruitment Task
 
+[![CI](https://github.com/PiotrKasperski/netwise-recruitment-task/actions/workflows/ci.yml/badge.svg)](https://github.com/PiotrKasperski/netwise-recruitment-task/actions/workflows/ci.yml)
+
 A .NET application that fetches random cat facts from the [Cat Facts API](https://catfact.ninja/) and saves them to a local `cat_facts.txt` file.
 
 ## Requirements
@@ -44,7 +46,7 @@ NetwiseRecruitmentTask/
 │   └── ...
 ├── NetwiseRecruitmentTask.Test/
 │   └── ...
-├── NetwiseRecruitmentTask.sln
+├── NetwiseRecruitmentTask.slnx
 └── README.md
 ```
 
