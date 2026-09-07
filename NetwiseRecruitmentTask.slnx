@@ -1,0 +1,4 @@
+<Solution>
+  <Project Path="NetwiseRecruitmentTask.Test/NetwiseRecruitmentTask.Test.csproj" />
+  <Project Path="NetwiseRecruitmentTask/NetwiseRecruitmentTask.csproj" />
+</Solution>
