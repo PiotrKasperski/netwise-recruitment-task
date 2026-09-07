@@ -29,7 +29,7 @@ public class ServiceConfigurationTests
         var factory = _provider.GetRequiredService<IHttpClientFactory>();
         var client = factory.CreateClient(nameof(ICatFactApiService));
         Assert.IsNotNull(client.BaseAddress);
-        Assert.AreEqual(new Uri("https://catfact.ninja/fact/"), client.BaseAddress);
+        Assert.AreEqual(new Uri("https://catfact.ninja/"), client.BaseAddress);
     }
 
     [TestMethod]
