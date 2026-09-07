@@ -1,5 +1,6 @@
 using System.Net;
 using System.Text;
+using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 
 [TestClass]
@@ -12,8 +13,7 @@ public class CatFactApiServiceTests
             HttpStatusCode.OK,
             """{"fact":"Cats sleep for most of their lives.","length":38}"""
         );
-
-        var sut = new CatFactApiService(httpClient);
+        var sut = new CatFactApiService(httpClient, CreateOptions());
 
         var result = await sut.GetCatFactAsync();
 
@@ -29,8 +29,7 @@ public class CatFactApiServiceTests
             HttpStatusCode.OK,
             "null"
         );
-
-        var sut = new CatFactApiService(httpClient);
+        var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
         {
@@ -56,8 +55,7 @@ public class CatFactApiServiceTests
             HttpStatusCode.OK,
             """{"fact":"Test fact","length":9}"""
         );
-
-        var sut = new CatFactApiService(httpClient);
+        var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
         {
@@ -76,8 +74,7 @@ public class CatFactApiServiceTests
             HttpStatusCode.InternalServerError,
             string.Empty
         );
-
-        var sut = new CatFactApiService(httpClient);
+        var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
         {
@@ -89,12 +86,20 @@ public class CatFactApiServiceTests
         }
     }
 
+    private static IOptions<CatFactSettings> CreateOptions() =>
+        Options.Create(new CatFactSettings
+        {
+            BaseAddress = "https://catfact.ninja/",
+            FactEndpoint = "fact",
+            RequestTimeoutSeconds = 10,
+            OutputFileName = "cat_facts.txt"
+        });
+
     private static HttpClient CreateHttpClient(
         HttpStatusCode statusCode,
         string content)
     {
         var handler = new TestHttpMessageHandler(statusCode, content);
-
         return new HttpClient(handler)
         {
             BaseAddress = new Uri("https://catfact.ninja/")
@@ -125,7 +130,6 @@ public class CatFactApiServiceTests
                     Encoding.UTF8,
                     "application/json")
             };
-
             return Task.FromResult(response);
         }
     }
