@@ -1,9 +1,12 @@
+using Microsoft.Extensions.Options;
+
 public sealed class FilesystemService : IFilesystemService
 {
     public string FilePath { get; }
-    public FilesystemService()
+
+    public FilesystemService(IOptions<CatFactSettings> options)
     {
-        FilePath = Path.Combine(AppContext.BaseDirectory, "cat_facts.txt");
+        FilePath = Path.Combine(AppContext.BaseDirectory, options.Value.OutputFileName);
     }
 
 
