@@ -23,5 +23,6 @@ public static class ServiceConfiguration
         });
 
         services.AddSingleton<IFilesystemService, FilesystemService>();
+        services.AddSingleton<IConsoleService, ConsoleService>();
     }
 }

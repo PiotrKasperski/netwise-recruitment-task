@@ -1,204 +1,174 @@
-using System;
-using System.IO;
-using System.Reflection;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
 
 [TestClass]
-[DoNotParallelize]
 public class WorkerTests
 {
-    private Mock<IHostApplicationLifetime> _lifetimeMock = null!;
+    private Mock<IHostApplicationLifetime> _hostApplicationLifetimeMock = null!;
     private Mock<ICatFactApiService> _catFactApiServiceMock = null!;
     private Mock<IFilesystemService> _filesystemServiceMock = null!;
-
-    private TextReader _originalIn = null!;
-    private TextWriter _originalOut = null!;
-    private TextWriter _originalError = null!;
+    private Mock<IConsoleService> _consoleServiceMock = null!;
+    private Mock<ILogger<Worker>> _loggerMock = null!;
 
     [TestInitialize]
     public void Setup()
     {
-        _lifetimeMock = new Mock<IHostApplicationLifetime>();
+        _hostApplicationLifetimeMock = new Mock<IHostApplicationLifetime>();
         _catFactApiServiceMock = new Mock<ICatFactApiService>();
         _filesystemServiceMock = new Mock<IFilesystemService>();
-
-        _originalIn = Console.In;
-        _originalOut = Console.Out;
-        _originalError = Console.Error;
+        _consoleServiceMock = new Mock<IConsoleService>();
+        _loggerMock = new Mock<ILogger<Worker>>();
     }
 
-    [TestCleanup]
-    public void TearDown()
+    private Worker CreateSut() => new(
+        _hostApplicationLifetimeMock.Object,
+        _catFactApiServiceMock.Object,
+        _filesystemServiceMock.Object,
+        _consoleServiceMock.Object,
+        _loggerMock.Object);
+
+    [TestMethod]
+    public async Task RunLoopAsync_OnStart_EnsuresFileExists()
     {
-        Console.SetIn(_originalIn);
-        Console.SetOut(_originalOut);
-        Console.SetError(_originalError);
-    }
+        _consoleServiceMock.Setup(c => c.ReadLine()).Returns("exit");
+        var sut = CreateSut();
 
-    private Worker CreateWorker()
-        => new Worker(_lifetimeMock.Object, _catFactApiServiceMock.Object, _filesystemServiceMock.Object);
+        await sut.RunLoopAsync(CancellationToken.None);
 
-    private static Task RunWorkerAsync(Worker worker, CancellationToken token)
-    {
-        var executeAsyncMethod = typeof(Worker).GetMethod(
-            "ExecuteAsync",
-            BindingFlags.NonPublic | BindingFlags.Instance);
-
-        if (executeAsyncMethod is null)
-        {
-            throw new InvalidOperationException(
-                "Could not find the ExecuteAsync method on the Worker type. Check the method name/signature.");
-        }
-
-        return (Task)executeAsyncMethod.Invoke(worker, new object[] { token })!;
-    }
-
-    private static void SetConsoleInput(params string[] lines)
-    {
-        var input = string.Join(Environment.NewLine, lines) + Environment.NewLine;
-        Console.SetIn(new StringReader(input));
+        _filesystemServiceMock.Verify(f => f.EnsureFileExist(), Times.Once);
     }
 
     [TestMethod]
-    public async Task ExecuteAsync_Should_EnsureFileExists_OnStartup()
+    public async Task RunLoopAsync_UserTypesExit_StopsLoopAndStopsApplication()
     {
-        SetConsoleInput("exit");
-        var worker = CreateWorker();
+        _consoleServiceMock.Setup(c => c.ReadLine()).Returns("exit");
+        var sut = CreateSut();
 
-        await RunWorkerAsync(worker, CancellationToken.None);
+        await sut.RunLoopAsync(CancellationToken.None);
 
-        _filesystemServiceMock.Verify(x => x.EnsureFileExist(), Times.Once);
+        _catFactApiServiceMock.Verify(
+            s => s.GetCatFactAsync(It.IsAny<CancellationToken>()), Times.Never);
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
     }
 
     [TestMethod]
-    public async Task ExecuteAsync_Should_StopApplication_When_UserTypesExit()
+    public async Task RunLoopAsync_UserTypesExit_CaseInsensitive_StopsLoop()
     {
-        SetConsoleInput("exit");
-        var worker = CreateWorker();
+        _consoleServiceMock.Setup(c => c.ReadLine()).Returns("ExIt");
+        var sut = CreateSut();
 
-        await RunWorkerAsync(worker, CancellationToken.None);
+        await sut.RunLoopAsync(CancellationToken.None);
 
-        _lifetimeMock.Verify(x => x.StopApplication(), Times.Once);
-        _catFactApiServiceMock.Verify(x => x.GetCatFactAsync(), Times.Never);
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
     }
 
     [TestMethod]
-    [DataRow("EXIT")]
-    [DataRow("Exit")]
-    [DataRow("eXiT")]
-    public async Task ExecuteAsync_Should_Exit_CaseInsensitively(string exitCommand)
+    public async Task RunLoopAsync_UserPressesEnter_FetchesFactAndAppendsToFile()
     {
-        SetConsoleInput(exitCommand);
-        var worker = CreateWorker();
-
-        await RunWorkerAsync(worker, CancellationToken.None);
-
-        _lifetimeMock.Verify(x => x.StopApplication(), Times.Once);
-    }
-
-    [TestMethod]
-    public async Task ExecuteAsync_Should_FetchFactAndAppendToFile_When_UserPressesEnter()
-    {
-        SetConsoleInput("", "exit");
-
         var fact = new CatFact { Fact = "Cats sleep a lot.", Length = 17 };
+
+        _consoleServiceMock
+            .SetupSequence(c => c.ReadLine())
+            .Returns(string.Empty)
+            .Returns("exit");
+
         _catFactApiServiceMock
-            .Setup(x => x.GetCatFactAsync())
+            .Setup(s => s.GetCatFactAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(fact);
 
-        var worker = CreateWorker();
+        var sut = CreateSut();
 
-        await RunWorkerAsync(worker, CancellationToken.None);
+        await sut.RunLoopAsync(CancellationToken.None);
 
-        _catFactApiServiceMock.Verify(x => x.GetCatFactAsync(), Times.Once);
+        _catFactApiServiceMock.Verify(
+            s => s.GetCatFactAsync(It.IsAny<CancellationToken>()), Times.Once);
+
         _filesystemServiceMock.Verify(
-            x => x.AppendLineAsync($"Fact: {fact.Fact} length: {fact.Length}"),
+            f => f.AppendLineAsync(
+                $"Fact: {fact.Fact} length: {fact.Length}",
+                It.IsAny<CancellationToken>()),
             Times.Once);
+
+        _consoleServiceMock.Verify(c => c.WriteLine(fact.Fact), Times.Once);
     }
 
     [TestMethod]
-    public async Task ExecuteAsync_Should_PrintFact_ToConsoleOutput()
+    public async Task RunLoopAsync_ApiThrows_WritesErrorAndContinuesLoop()
     {
-        SetConsoleInput("", "exit");
-        var outputWriter = new StringWriter();
-        Console.SetOut(outputWriter);
+        _consoleServiceMock
+            .SetupSequence(c => c.ReadLine())
+            .Returns(string.Empty)
+            .Returns("exit");
 
-        var fact = new CatFact { Fact = "Cats have 32 muscles in each ear.", Length = 34 };
         _catFactApiServiceMock
-            .Setup(x => x.GetCatFactAsync())
+            .Setup(s => s.GetCatFactAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new InvalidOperationException("boom"));
+
+        var sut = CreateSut();
+
+        await sut.RunLoopAsync(CancellationToken.None);
+
+        _consoleServiceMock.Verify(c => c.WriteError("boom"), Times.Once);
+        _consoleServiceMock.Verify(c => c.ReadLine(), Times.Exactly(2));
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
+    }
+
+    [TestMethod]
+    public async Task RunLoopAsync_FilesystemThrows_WritesErrorAndContinuesLoop()
+    {
+        var fact = new CatFact { Fact = "Test fact", Length = 9 };
+
+        _consoleServiceMock
+            .SetupSequence(c => c.ReadLine())
+            .Returns(string.Empty)
+            .Returns("exit");
+
+        _catFactApiServiceMock
+            .Setup(s => s.GetCatFactAsync(It.IsAny<CancellationToken>()))
             .ReturnsAsync(fact);
 
-        var worker = CreateWorker();
+        _filesystemServiceMock
+            .Setup(f => f.AppendLineAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new IOException("disk full"));
 
-        await RunWorkerAsync(worker, CancellationToken.None);
+        var sut = CreateSut();
 
-        StringAssert.Contains(outputWriter.ToString(), fact.Fact);
+        await sut.RunLoopAsync(CancellationToken.None);
+
+        _consoleServiceMock.Verify(c => c.WriteError("disk full"), Times.Once);
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
     }
 
     [TestMethod]
-    public async Task ExecuteAsync_Should_LoopMultipleTimes_UntilExit()
+    public async Task RunLoopAsync_CancellationRequestedBeforeStart_DoesNotEnterLoop()
     {
-        SetConsoleInput("", "", "exit");
+        using var cts = new CancellationTokenSource();
+        cts.Cancel();
 
-        _catFactApiServiceMock
-            .Setup(x => x.GetCatFactAsync())
-            .ReturnsAsync(new CatFact { Fact = "Some fact", Length = 9 });
+        var sut = CreateSut();
 
-        var worker = CreateWorker();
+        await sut.RunLoopAsync(cts.Token);
 
-        await RunWorkerAsync(worker, CancellationToken.None);
-
-        _catFactApiServiceMock.Verify(x => x.GetCatFactAsync(), Times.Exactly(2));
-        _filesystemServiceMock.Verify(
-            x => x.AppendLineAsync(It.IsAny<string>()),
-            Times.Exactly(2));
+        _consoleServiceMock.Verify(c => c.ReadLine(), Times.Never);
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
     }
 
     [TestMethod]
-    public async Task ExecuteAsync_Should_WriteErrorToConsoleError_When_ApiThrows()
+    public async Task RunLoopAsync_ApiCallIsCanceled_StopsLoopGracefully()
     {
-        SetConsoleInput("", "exit");
-        var errorWriter = new StringWriter();
-        Console.SetError(errorWriter);
+        _consoleServiceMock.Setup(c => c.ReadLine()).Returns(string.Empty);
 
         _catFactApiServiceMock
-            .Setup(x => x.GetCatFactAsync())
-            .ThrowsAsync(new InvalidOperationException("API is down"));
+            .Setup(s => s.GetCatFactAsync(It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
 
-        var worker = CreateWorker();
+        var sut = CreateSut();
 
-        await RunWorkerAsync(worker, CancellationToken.None);
+        await sut.RunLoopAsync(CancellationToken.None);
 
-        StringAssert.Contains(errorWriter.ToString(), "API is down");
-        _filesystemServiceMock.Verify(
-            x => x.AppendLineAsync(It.IsAny<string>()),
-            Times.Never);
-    }
-
-    [TestMethod]
-    public async Task ExecuteAsync_Should_ContinueLoop_After_ExceptionIsThrown()
-    {
-        SetConsoleInput("", "", "exit");
-        Console.SetError(new StringWriter());
-
-        var fact = new CatFact { Fact = "Recovered fact", Length = 14 };
-        _catFactApiServiceMock
-            .SetupSequence(x => x.GetCatFactAsync())
-            .ThrowsAsync(new InvalidOperationException("boom"))
-            .ReturnsAsync(fact);
-
-        var worker = CreateWorker();
-
-        await RunWorkerAsync(worker, CancellationToken.None);
-
-        _catFactApiServiceMock.Verify(x => x.GetCatFactAsync(), Times.Exactly(2));
-        _filesystemServiceMock.Verify(
-            x => x.AppendLineAsync($"Fact: {fact.Fact} length: {fact.Length}"),
-            Times.Once);
-        _lifetimeMock.Verify(x => x.StopApplication(), Times.Once);
+        _hostApplicationLifetimeMock.Verify(h => h.StopApplication(), Times.Once);
+        _consoleServiceMock.Verify(c => c.ReadLine(), Times.Once);
     }
 }
