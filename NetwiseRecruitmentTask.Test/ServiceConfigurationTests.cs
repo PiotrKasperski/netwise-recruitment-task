@@ -1,0 +1,59 @@
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Microsoft.VisualStudio.TestTools.UnitTesting;
+
+[TestClass]
+public class ServiceConfigurationTests
+{
+    private IServiceProvider _provider = null!;
+
+    [TestInitialize]
+    public void Setup()
+    {
+        var builder = Host.CreateApplicationBuilder();
+        ServiceConfiguration.Configure(builder.Services);
+        var host = builder.Build();
+        _provider = host.Services;
+    }
+
+    [TestMethod]
+    public void Configure_RegistersWorkerAsHostedService()
+    {
+        var hostedServices = _provider.GetServices<IHostedService>();
+        Assert.IsTrue(hostedServices.Any(s => s is Worker));
+    }
+
+    [TestMethod]
+    public void Configure_RegistersCatFactApiServiceWithCorrectBaseAddress()
+    {
+        var factory = _provider.GetRequiredService<IHttpClientFactory>();
+        var client = factory.CreateClient(nameof(ICatFactApiService));
+        Assert.IsNotNull(client.BaseAddress);
+        Assert.AreEqual(new Uri("https://catfact.ninja/"), client.BaseAddress);
+    }
+
+    [TestMethod]
+    public void Configure_RegistersCatFactApiServiceWithCorrectTimeout()
+    {
+        var factory = _provider.GetRequiredService<IHttpClientFactory>();
+        var client = factory.CreateClient(nameof(ICatFactApiService));
+        Assert.AreEqual(TimeSpan.FromSeconds(10), client.Timeout);
+    }
+
+    [TestMethod]
+    public void Configure_RegistersICatFactApiServiceAsResolvable()
+    {
+        var service = _provider.GetService<ICatFactApiService>();
+        Assert.IsNotNull(service);
+        Assert.IsInstanceOfType(service, typeof(CatFactApiService));
+    }
+
+    [TestMethod]
+    public void Configure_RegistersIFilesystemServiceAsSingleton()
+    {
+        var instance1 = _provider.GetRequiredService<IFilesystemService>();
+        var instance2 = _provider.GetRequiredService<IFilesystemService>();
+        Assert.AreSame(instance1, instance2);
+        Assert.IsInstanceOfType(instance1, typeof(FilesystemService));
+    }
+}
