@@ -1,3 +1,5 @@
+namespace NetwiseRecruitmentTask.Services;
+
 public interface IFilesystemService
 {
     void EnsureFileExist();

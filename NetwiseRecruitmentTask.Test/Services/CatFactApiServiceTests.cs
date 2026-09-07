@@ -2,6 +2,7 @@ using System.Net;
 using System.Text;
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NetwiseRecruitmentTask.Services;
 
 [TestClass]
 public class CatFactApiServiceTests

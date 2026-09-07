@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Options;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NetwiseRecruitmentTask.Services;
 
 [TestClass]
 [DoNotParallelize]

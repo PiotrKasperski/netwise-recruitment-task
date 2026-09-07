@@ -2,6 +2,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using NetwiseRecruitmentTask;
+using NetwiseRecruitmentTask.Services;
 
 [TestClass]
 public class ServiceConfigurationTests
