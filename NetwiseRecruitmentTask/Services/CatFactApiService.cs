@@ -1,17 +1,20 @@
 using System.Net.Http.Json;
+using Microsoft.Extensions.Options;
 
 public sealed class CatFactApiService : ICatFactApiService
 {
     private readonly HttpClient _httpClient;
+    private readonly CatFactSettings _settings;
 
-    public CatFactApiService(HttpClient httpClient)
+    public CatFactApiService(HttpClient httpClient, IOptions<CatFactSettings> options)
     {
         _httpClient = httpClient;
+        _settings = options.Value;
     }
 
     public async Task<CatFact> GetCatFactAsync(CancellationToken cancellationToken = default)
     {
-        var fact = await _httpClient.GetFromJsonAsync<CatFact>("fact", cancellationToken);
+        var fact = await _httpClient.GetFromJsonAsync<CatFact>(_settings.FactEndpoint, cancellationToken);
 
         if (fact is null)
         {

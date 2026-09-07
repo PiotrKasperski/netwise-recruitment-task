@@ -1,3 +1,4 @@
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
@@ -11,7 +12,19 @@ public class ServiceConfigurationTests
     public void Setup()
     {
         var builder = Host.CreateApplicationBuilder();
-        ServiceConfiguration.Configure(builder.Services);
+
+        var inMemorySettings = new Dictionary<string, string?>
+        {
+            ["CatFactSettings:BaseAddress"] = "https://catfact.ninja/",
+            ["CatFactSettings:FactEndpoint"] = "fact",
+            ["CatFactSettings:RequestTimeoutSeconds"] = "10",
+            ["CatFactSettings:OutputFileName"] = "cat_facts.txt"
+        };
+
+        builder.Configuration.AddInMemoryCollection(inMemorySettings);
+
+        ServiceConfiguration.Configure(builder.Services, builder.Configuration);
+
         var host = builder.Build();
         _provider = host.Services;
     }
