@@ -11,6 +11,8 @@ builder.Services.AddHttpClient<ICatFactApiService, CatFactApiService>(client =>
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 
+builder.Services.AddSingleton<IFilesystemService, FilesystemService>();
+
 IHost host = builder.Build();
 
 host.Run();
