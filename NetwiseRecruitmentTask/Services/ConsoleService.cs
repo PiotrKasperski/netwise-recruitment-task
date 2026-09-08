@@ -25,54 +25,40 @@ public sealed class ConsoleService : IConsoleService
 
     public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
     {
-        if (Console.IsInputRedirected)
-        {
-            using var registration = cancellationToken.Register(() => { });
-            return await Console.In.ReadLineAsync(cancellationToken);
-        }
-
         var input = new StringBuilder();
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            try
+            if (!Console.KeyAvailable)
             {
-                if (!Console.KeyAvailable)
-                {
-                    await Task.Delay(50, cancellationToken);
-                    continue;
-                }
-
-                var key = Console.ReadKey(intercept: true);
-
-                if (key.Key == ConsoleKey.Enter)
-                {
-                    Console.WriteLine();
-                    return input.ToString();
-                }
-
-                if (key.Key == ConsoleKey.Backspace)
-                {
-                    if (input.Length == 0)
-                        continue;
-
-                    input.Length--;
-                    Console.Write("\b \b");
-                    continue;
-                }
-
-                if (!char.IsControl(key.KeyChar))
-                {
-                    input.Append(key.KeyChar);
-                    Console.Write(key.KeyChar);
-                }
+                await Task.Delay(50, cancellationToken);
+                continue;
             }
-            catch (InvalidOperationException) when (Console.IsInputRedirected)
+
+            var key = Console.ReadKey(intercept: true);
+
+            if (key.Key == ConsoleKey.Enter)
             {
-                // Fallback for CI/non-interactive environments
-                return await Console.In.ReadLineAsync(cancellationToken);
+                Console.WriteLine();
+                return input.ToString();
+            }
+
+            if (key.Key == ConsoleKey.Backspace)
+            {
+                if (input.Length == 0)
+                    continue;
+
+                input.Length--;
+                Console.Write("\b \b");
+                continue;
+            }
+
+            if (!char.IsControl(key.KeyChar))
+            {
+                input.Append(key.KeyChar);
+                Console.Write(key.KeyChar);
             }
         }
     }
