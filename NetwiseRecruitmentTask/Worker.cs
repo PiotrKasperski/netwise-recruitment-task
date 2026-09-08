@@ -20,16 +20,24 @@ public sealed class Worker(
         console.Clear();
         filesystemService.EnsureFileExist();
 
-        if (options.Count.HasValue)
+        try
         {
-            await FetchFactsAsync(options.Count.Value, stoppingToken);
-            hostApplicationLifetime.StopApplication();
-            return;
+            if (options.Count.HasValue)
+            {
+                await FetchFactsAsync(options.Count.Value, stoppingToken);
+                return;
+            }
+
+            await RunInteractiveAsync(stoppingToken);
         }
-
-        await RunInteractiveAsync(stoppingToken);
-
-        hostApplicationLifetime.StopApplication();
+        catch (OperationCanceledException)
+        {
+            logger.LogInformation("Worker cancellation requested");
+        }
+        finally
+        {
+            hostApplicationLifetime.StopApplication();
+        }
     }
 
     private async Task RunInteractiveAsync(CancellationToken stoppingToken)
