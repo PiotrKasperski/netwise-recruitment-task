@@ -7,7 +7,7 @@ namespace NetwiseRecruitmentTask;
 
 public static class ServiceConfiguration
 {
-    public static void Configure(IServiceCollection services, IConfiguration configuration)
+    public static void Configure(IServiceCollection services, IConfiguration configuration, CommandLineOptions options)
     {
         services.AddOptions<CatFactSettings>()
             .Bind(configuration.GetSection(CatFactSettings.SectionName))
@@ -27,5 +27,6 @@ public static class ServiceConfiguration
 
         services.AddSingleton<IFilesystemService, FilesystemService>();
         services.AddSingleton<IConsoleService, ConsoleService>();
+        services.AddSingleton(options);
     }
 }
