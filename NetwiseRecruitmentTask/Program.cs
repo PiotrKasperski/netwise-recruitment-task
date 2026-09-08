@@ -6,7 +6,7 @@ using NetwiseRecruitmentTask;
 
 HostApplicationBuilder builder = Host.CreateApplicationBuilder(args);
 builder.Logging.AddFilter("Microsoft.Hosting.Lifetime", LogLevel.None);
-ServiceConfiguration.Configure(builder.Services, builder.Configuration);
+ServiceConfiguration.Configure(builder.Services, builder.Configuration, CommandLineOptions.Parse(args));
 
 IHost host = builder.Build();
 

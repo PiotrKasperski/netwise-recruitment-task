@@ -25,7 +25,12 @@ public class ServiceConfigurationTests
 
         builder.Configuration.AddInMemoryCollection(inMemorySettings);
 
-        ServiceConfiguration.Configure(builder.Services, builder.Configuration);
+        var options = new CommandLineOptions(false, null);
+
+        ServiceConfiguration.Configure(
+            builder.Services,
+            builder.Configuration,
+            options);
 
         var host = builder.Build();
         _provider = host.Services;
@@ -35,6 +40,7 @@ public class ServiceConfigurationTests
     public void Configure_RegistersWorkerAsHostedService()
     {
         var hostedServices = _provider.GetServices<IHostedService>();
+
         Assert.IsTrue(hostedServices.Any(s => s is Worker));
     }
 
@@ -43,8 +49,11 @@ public class ServiceConfigurationTests
     {
         var factory = _provider.GetRequiredService<IHttpClientFactory>();
         var client = factory.CreateClient(nameof(ICatFactApiService));
+
         Assert.IsNotNull(client.BaseAddress);
-        Assert.AreEqual(new Uri("https://catfact.ninja/"), client.BaseAddress);
+        Assert.AreEqual(
+            new Uri("https://catfact.ninja/"),
+            client.BaseAddress);
     }
 
     [TestMethod]
@@ -52,15 +61,21 @@ public class ServiceConfigurationTests
     {
         var factory = _provider.GetRequiredService<IHttpClientFactory>();
         var client = factory.CreateClient(nameof(ICatFactApiService));
-        Assert.AreEqual(TimeSpan.FromSeconds(10), client.Timeout);
+
+        Assert.AreEqual(
+            TimeSpan.FromSeconds(10),
+            client.Timeout);
     }
 
     [TestMethod]
     public void Configure_RegistersICatFactApiServiceAsResolvable()
     {
         var service = _provider.GetService<ICatFactApiService>();
+
         Assert.IsNotNull(service);
-        Assert.IsInstanceOfType(service, typeof(CatFactApiService));
+        Assert.IsInstanceOfType(
+            service,
+            typeof(CatFactApiService));
     }
 
     [TestMethod]
@@ -68,7 +83,19 @@ public class ServiceConfigurationTests
     {
         var instance1 = _provider.GetRequiredService<IFilesystemService>();
         var instance2 = _provider.GetRequiredService<IFilesystemService>();
+
         Assert.AreSame(instance1, instance2);
-        Assert.IsInstanceOfType(instance1, typeof(FilesystemService));
+        Assert.IsInstanceOfType(
+            instance1,
+            typeof(FilesystemService));
+    }
+
+    [TestMethod]
+    public void Configure_RegistersCommandLineOptions()
+    {
+        var options = _provider.GetRequiredService<CommandLineOptions>();
+
+        Assert.IsFalse(options.Once);
+        Assert.IsNull(options.Count);
     }
 }
