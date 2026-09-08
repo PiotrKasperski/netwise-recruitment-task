@@ -10,17 +10,20 @@ public class CatFactApiServiceTests
     [TestMethod]
     public async Task GetCatFactAsync_ApiReturnsCatFact_ReturnsCatFact()
     {
+        const string fact = "Cats sleep for most of their lives.";
+        const int length = 38;
+
         using var httpClient = CreateHttpClient(
             HttpStatusCode.OK,
-            """{"fact":"Cats sleep for most of their lives.","length":38}"""
-        );
+            $$"""{"fact":"{{fact}}","length":{{length}}}""");
+
         var sut = new CatFactApiService(httpClient, CreateOptions());
 
         var result = await sut.GetCatFactAsync();
 
         Assert.IsNotNull(result);
-        Assert.AreEqual("Cats sleep for most of their lives.", result.Fact);
-        Assert.AreEqual(38, result.Length);
+        Assert.AreEqual(fact, result.Fact);
+        Assert.AreEqual(length, result.Length);
     }
 
     [TestMethod]
@@ -28,8 +31,8 @@ public class CatFactApiServiceTests
     {
         using var httpClient = CreateHttpClient(
             HttpStatusCode.OK,
-            "null"
-        );
+            "null");
+
         var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
@@ -41,8 +44,7 @@ public class CatFactApiServiceTests
         {
             Assert.AreEqual(
                 "Can not read answer from catfact.ninja",
-                ex.Message
-            );
+                ex.Message);
         }
     }
 
@@ -54,8 +56,8 @@ public class CatFactApiServiceTests
 
         using var httpClient = CreateHttpClient(
             HttpStatusCode.OK,
-            """{"fact":"Test fact","length":9}"""
-        );
+            """{"fact":"Test fact","length":9}""");
+
         var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
@@ -73,8 +75,8 @@ public class CatFactApiServiceTests
     {
         using var httpClient = CreateHttpClient(
             HttpStatusCode.InternalServerError,
-            string.Empty
-        );
+            string.Empty);
+
         var sut = new CatFactApiService(httpClient, CreateOptions());
 
         try
@@ -85,6 +87,29 @@ public class CatFactApiServiceTests
         catch (HttpRequestException)
         {
         }
+    }
+
+    [TestMethod]
+    public async Task GetCatFactAsync_SendsGetRequestToConfiguredEndpoint()
+    {
+        var handler = new TestHttpMessageHandler(
+            HttpStatusCode.OK,
+            """{"fact":"Test fact","length":9}""");
+
+        using var httpClient = new HttpClient(handler)
+        {
+            BaseAddress = new Uri("https://catfact.ninja/")
+        };
+
+        var sut = new CatFactApiService(httpClient, CreateOptions());
+
+        await sut.GetCatFactAsync();
+
+        Assert.IsNotNull(handler.Request);
+        Assert.AreEqual(HttpMethod.Get, handler.Request.Method);
+        Assert.AreEqual(
+            "https://catfact.ninja/fact",
+            handler.Request.RequestUri?.ToString());
     }
 
     private static IOptions<CatFactSettings> CreateOptions() =>
@@ -101,6 +126,7 @@ public class CatFactApiServiceTests
         string content)
     {
         var handler = new TestHttpMessageHandler(statusCode, content);
+
         return new HttpClient(handler)
         {
             BaseAddress = new Uri("https://catfact.ninja/")
@@ -111,6 +137,8 @@ public class CatFactApiServiceTests
     {
         private readonly HttpStatusCode _statusCode;
         private readonly string _content;
+
+        public HttpRequestMessage? Request { get; private set; }
 
         public TestHttpMessageHandler(
             HttpStatusCode statusCode,
@@ -124,6 +152,10 @@ public class CatFactApiServiceTests
             HttpRequestMessage request,
             CancellationToken cancellationToken)
         {
+            cancellationToken.ThrowIfCancellationRequested();
+
+            Request = request;
+
             var response = new HttpResponseMessage(_statusCode)
             {
                 Content = new StringContent(
@@ -131,6 +163,7 @@ public class CatFactApiServiceTests
                     Encoding.UTF8,
                     "application/json")
             };
+
             return Task.FromResult(response);
         }
     }

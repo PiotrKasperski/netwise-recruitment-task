@@ -19,6 +19,7 @@ public sealed class Worker(
         console.Clear();
         filesystemService.EnsureFileExist();
 
+
         while (!stoppingToken.IsCancellationRequested)
         {
             console.WriteLine("Push ENTER to get new fact or type 'exit' to close the app");
