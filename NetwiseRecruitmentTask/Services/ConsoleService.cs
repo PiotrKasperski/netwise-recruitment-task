@@ -25,40 +25,54 @@ public sealed class ConsoleService : IConsoleService
 
     public async Task<string?> ReadLineAsync(CancellationToken cancellationToken)
     {
+        if (Console.IsInputRedirected)
+        {
+            using var registration = cancellationToken.Register(() => { });
+            return await Console.In.ReadLineAsync(cancellationToken);
+        }
+
         var input = new StringBuilder();
 
         while (true)
         {
             cancellationToken.ThrowIfCancellationRequested();
 
-            if (!Console.KeyAvailable)
+            try
             {
-                await Task.Delay(50, cancellationToken);
-                continue;
-            }
-
-            var key = Console.ReadKey(intercept: true);
-
-            if (key.Key == ConsoleKey.Enter)
-            {
-                Console.WriteLine();
-                return input.ToString();
-            }
-
-            if (key.Key == ConsoleKey.Backspace)
-            {
-                if (input.Length == 0)
+                if (!Console.KeyAvailable)
+                {
+                    await Task.Delay(50, cancellationToken);
                     continue;
+                }
 
-                input.Length--;
-                Console.Write("\b \b");
-                continue;
+                var key = Console.ReadKey(intercept: true);
+
+                if (key.Key == ConsoleKey.Enter)
+                {
+                    Console.WriteLine();
+                    return input.ToString();
+                }
+
+                if (key.Key == ConsoleKey.Backspace)
+                {
+                    if (input.Length == 0)
+                        continue;
+
+                    input.Length--;
+                    Console.Write("\b \b");
+                    continue;
+                }
+
+                if (!char.IsControl(key.KeyChar))
+                {
+                    input.Append(key.KeyChar);
+                    Console.Write(key.KeyChar);
+                }
             }
-
-            if (!char.IsControl(key.KeyChar))
+            catch (InvalidOperationException) when (Console.IsInputRedirected)
             {
-                input.Append(key.KeyChar);
-                Console.Write(key.KeyChar);
+                // Fallback for CI/non-interactive environments
+                return await Console.In.ReadLineAsync(cancellationToken);
             }
         }
     }
